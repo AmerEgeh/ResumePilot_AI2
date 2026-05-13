@@ -1,4 +1,49 @@
-.env
+# --- SECRETS & ENV ---
+.env*
+!.env.example
+*.pem
+
+# --- BACKEND (Python) ---
 __pycache__/
-backend/env/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+backend/venv/
+backend/.venv/
+.python-version
+.pytest_cache/
+
+# --- FRONTEND (Node/Next/Yarn) ---
 node_modules/
+frontend/node_modules/
+.next/
+frontend/.next/
+out/
+build/
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+.pnp.*
+.pnp
+.npm
+.eslintcache
+
+# --- TESTING & DEBUG ---
+coverage/
+/coverage
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# --- TOOLS & SYSTEM ---
+.vercel
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.tsbuildinfo
+next-env.d.ts
