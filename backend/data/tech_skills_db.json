@@ -1,0 +1,11 @@
+[
+    "python", "sql", "java", "scala", "bash", "go", "c++", 
+    "aws", "gcp", "azure", "google cloud platform", "amazon web services",
+    "snowflake", "redshift", "bigquery", "postgresql", "mysql", "mongodb", "cassandra",
+    "apache spark", "spark", "apache kafka", "kafka", "hadoop", "flink",
+    "apache airflow", "airflow", "dbt", "luigi", "prefect",
+    "docker", "kubernetes", "git", "github", "gitlab", "ci/cd", "terraform",
+    "data streaming", "etl", "elt", "data warehousing", "data modeling", "machine learning",
+    "fastapi", "django", "pandas", "numpy", "scikit-learn", "linux", "ubuntu",
+    "real-time", "orchestration"
+]
