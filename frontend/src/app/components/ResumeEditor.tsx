@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useImperativeHandle, forwardRef } from 'react';
-import { useEditor, EditorContent, Extension } from '@tiptap/react';
+// 1. ADDED: Mark and mergeAttributes imported here
+import { useEditor, EditorContent, Extension, Mark, mergeAttributes } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { TextStyle } from '@tiptap/extension-text-style';
@@ -35,10 +36,22 @@ const FontSize = Extension.create({
   },
 });
 
+// --- 2. NEW: THE HIGHLIGHT EXTENSION ---
+// This prevents TipTap from deleting our yellow highlights!
+const HighlightMark = Mark.create({
+  name: 'highlightMark',
+  parseHTML() {
+    return [{ tag: 'mark[data-highlight="true"]' }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ['mark', mergeAttributes(HTMLAttributes, { style: 'background-color: #fef08a; border-radius: 3px;' }), 0];
+  },
+});
+// ----------------------------------------
+
 const MenuBar = ({ editor }: { editor: any }) => {
   if (!editor) return null;
   return (
-    // 'print:hidden' hides this entire toolbar when generating the PDF
     <div className="flex gap-2 p-3 mb-4 border-b border-gray-200 bg-gray-50 rounded-t-xl items-center sticky top-0 z-10 print:hidden">
       <select
         onChange={(e) => editor.chain().focus().setFontSize(e.target.value).run()}
@@ -62,25 +75,24 @@ const MenuBar = ({ editor }: { editor: any }) => {
 
 const ResumeEditor = forwardRef(({ value, onChange }: { value: string; onChange: (text: string) => void }, ref) => {
   const editor = useEditor({
-    extensions: [StarterKit, TextStyle, FontSize, Placeholder.configure({ placeholder: 'Upload your resume to begin...' })],
+    // 3. ADDED: HighlightMark included in the extensions list
+    extensions: [StarterKit, TextStyle, FontSize, HighlightMark, Placeholder.configure({ placeholder: 'Upload your resume to begin...' })],
     content: value,
-    // Note the print:* classes here to strip padding during PDF export
     editorProps: { attributes: { class: 'focus:outline-none min-h-[700px] px-8 pb-8 print:min-h-0 print:px-0 print:pb-0 text-gray-800 text-[12pt] leading-relaxed transition-all duration-200' } },
     onUpdate: ({ editor }) => { onChange(editor.getHTML()); },
   });
 
   useImperativeHandle(ref, () => ({
-    // --- 1. COMMAND: CLEAR ALL HIGHLIGHTS ---
     clearHighlight: () => {
       if (!editor) return;
       let currentHtml = editor.getHTML();
       if (currentHtml.includes('data-highlight="true"')) {
-        const clearedHtml = currentHtml.replace(/<span data-highlight="true"[^>]*>(.*?)<\/span>/gi, '$1');
-        editor.commands.setContent(clearedHtml); // TS fix applied here
+        // Updated to remove the <mark> tag instead of span
+        const clearedHtml = currentHtml.replace(/<mark data-highlight="true"[^>]*>(.*?)<\/mark>/gi, '$1');
+        editor.commands.setContent(clearedHtml); 
       }
     },
 
-    // --- 2. COMMAND: HIGHLIGHT TARGET TEXT ---
     highlightText: (oldText: string) => {
       if (!editor) return;
       let cleanOldText = oldText.replace(/^[\s•\-\*]+/, '').trim();
@@ -95,21 +107,22 @@ const ResumeEditor = forwardRef(({ value, onChange }: { value: string; onChange:
       const findRegex = new RegExp(`(${corePattern})`, 'i');
 
       let currentHtml = editor.getHTML();
-      currentHtml = currentHtml.replace(/<span data-highlight="true"[^>]*>(.*?)<\/span>/gi, '$1');
+      // Clean existing marks first
+      currentHtml = currentHtml.replace(/<mark data-highlight="true"[^>]*>(.*?)<\/mark>/gi, '$1');
 
       if (findRegex.test(currentHtml)) {
-         const updatedHtml = currentHtml.replace(findRegex, `<span data-highlight="true" style="background-color: #fef08a; border-radius: 3px;">$1</span>`);
-         editor.commands.setContent(updatedHtml); // TS fix applied here
+         // Updated to use our new <mark> tag
+         const updatedHtml = currentHtml.replace(findRegex, `<mark data-highlight="true">$1</mark>`);
+         editor.commands.setContent(updatedHtml); 
       }
     },
 
-    // --- 3. COMMAND: MAGIC REPLACE ---
     replaceText: (oldText: string, newText: string) => {
       if (!editor) return;
       let currentHtml = editor.getHTML();
 
-      // Ensure highlight is cleared BEFORE replacing, so it doesn't get stuck
-      currentHtml = currentHtml.replace(/<span data-highlight="true"[^>]*>(.*?)<\/span>/gi, '$1');
+      // Clear marks before replacing
+      currentHtml = currentHtml.replace(/<mark data-highlight="true"[^>]*>(.*?)<\/mark>/gi, '$1');
 
       let finalNewText = String(newText);
       const splitKeys = ['**Suggested Rewrite:**', 'Suggested Rewrite:', '**Rewrite:**', 'Rewrite:'];
@@ -126,12 +139,12 @@ const ResumeEditor = forwardRef(({ value, onChange }: { value: string; onChange:
       cleanOldText = cleanOldText.replace(/^["']|["']$/g, '').trim();
 
       const isBullet = oldText.trim().startsWith('•') || oldText.trim().startsWith('-');
-      const styledNewText = `<span style="color: #059669; font-weight: 500;">${cleanNewText}</span>`;
-      const replacementString = isBullet ? `• ${styledNewText}` : styledNewText;
+      // Keep replacement looking professional and matching the rest of the text
+      const replacementString = isBullet ? `• ${cleanNewText}` : cleanNewText;
 
       const applyUpdate = (newHtml: string) => {
         editor.commands.setContent(newHtml);
-        setTimeout(() => onChange(editor.getHTML()), 0); // Force sync with parent
+        setTimeout(() => onChange(editor.getHTML()), 0); 
       };
 
       const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -152,7 +165,7 @@ const ResumeEditor = forwardRef(({ value, onChange }: { value: string; onChange:
     }
   }));
 
-  // Initial Formatting Effect (Caps, Headers, Bullets)
+  // Initial Formatting Effect
   useEffect(() => {
     if (!editor || !value || value.includes('<p>')) return;
     const formatted = value.split('\n').map((line, index) => {
