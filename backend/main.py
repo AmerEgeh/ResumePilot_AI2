@@ -1,6 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import extract, analyze  # <-- UPDATED: We added the analyze router here!
+from routers import extract, analyze
+import os
+from dotenv import load_dotenv
+
+# --- LOAD ENVIRONMENT VARIABLES FIRST ---
+load_dotenv()
 
 app = FastAPI(
     title="ResumePilot AI Backend",
@@ -18,7 +23,7 @@ app.add_middleware(
 
 # --- INCLUDE ROUTERS --- 
 app.include_router(extract.router, prefix="/api", tags=["Extraction"])
-app.include_router(analyze.router, prefix="/api", tags=["Analysis"]) # <-- NEW: Linked the new router!
+app.include_router(analyze.router, prefix="/api", tags=["Analysis"])
 
 @app.get("/")
 async def root():

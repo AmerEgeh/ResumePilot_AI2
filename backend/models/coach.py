@@ -3,12 +3,15 @@ import os
 import random
 import json
 import time
+from pathlib import Path
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 
-# Load environment variables (your secret key)
-load_dotenv()
+# --- BULLETPROOF .ENV LOADER ---
+# This forces Python to look in the EXACT directory, overriding any stuck memory keys
+BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(dotenv_path=BASE_DIR / ".env", override=True)
 
 # Initialize the Gemini Client
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
@@ -65,6 +68,12 @@ def extract_experience_bullets(raw_text):
             return extracted
         except Exception as e:
             error_str = str(e)
+
+            print("\n" + "!"*50)
+            print(f"🔑 KEY CHECK: {str(os.getenv('GEMINI_API_KEY'))[:10]}...")
+            print(f"🚨 REAL ERROR: {error_str}")
+            print("!"*50 + "\n")
+
             if ("503" in error_str or "429" in error_str) and attempt < 2:
                 time.sleep(2 ** attempt)
                 continue
@@ -184,7 +193,7 @@ def generate_micro_objective(raw_resume, jd_text):
     for attempt in range(3):
         try:
             response = client.models.generate_content(
-                model='gemini-2.5-flash', 
+                model='gemini-2.5-flash',
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     temperature=0.7 

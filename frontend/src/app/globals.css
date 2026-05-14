@@ -3,3 +3,12 @@
 body {
   background-color: #f3f4f6; /* A nice, soft gray background */
 }
+
+@media print {
+  @page {
+    margin: 0; /* This completely hides the Date, Title, URL, and Page Numbers */
+  }
+  body {
+    margin: 1.5cm; /* This adds back a professional resume margin */
+  }
+}
