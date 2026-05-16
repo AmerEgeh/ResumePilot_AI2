@@ -53,18 +53,57 @@ export default function Dashboard() {
     } finally { setIsAnalyzing(false); }
   };
 
+  // --- NEW: HANDLE ACCEPTING REWRITES ---
+  const handleAcceptRewrite = (oldText: string, newText: string) => {
+    // 1. Tell the editor to replace the text
+    editorRef.current?.replaceText(oldText, newText);
+
+    // 2. Remove this specific suggestion from the sidebar UI
+    setAnalysisResults((prevResults: any) => {
+      if (!prevResults || !prevResults.feedback_report) return prevResults;
+
+      // Create a copy of the current feedback report
+      const updatedFeedback = { ...prevResults.feedback_report };
+      
+      // Delete the entry we just accepted
+      delete updatedFeedback[oldText];
+
+      // Return the updated state
+      return {
+        ...prevResults,
+        feedback_report: updatedFeedback
+      };
+    });
+  };
+
+  // --- CIRCULAR GRADING LOGIC ---
+  let matchStatus = { label: "PENDING", color: "text-gray-400", border: "border-gray-100", dot: "⚪" };
+  let displayScore = "0%";
+  
+  if (analysisResults && !analysisResults.error) {
+    const score = Math.round(analysisResults.score);
+    displayScore = `${score}%`;
+    if (score > 44) {
+      matchStatus = { label: "EXCELLENT", color: "text-green-600", border: "border-green-400", dot: "🟢" };
+    } else if (score >= 30) {
+      matchStatus = { label: "GOOD", color: "text-yellow-500", border: "border-yellow-400", dot: "🟡" };
+    } else {
+      matchStatus = { label: "WEAK", color: "text-red-500", border: "border-red-400", dot: "🔴" };
+    }
+  } else {
+      matchStatus.border = "border-blue-100";
+      matchStatus.color = "text-blue-600";
+  }
+
   return (
-    // ADDED: print:bg-white print:p-0
     <div className="min-h-screen w-full bg-[#f3f4f6] text-black p-6 flex justify-center font-sans print:bg-white print:p-0">
       
-      {/* ADDED: print:block print:w-full print:max-w-none */}
       <div className="w-full max-w-[1400px] flex gap-8 print:block print:w-full print:max-w-none">
         
         {/* LEFT SIDE: EDITOR */}
-        {/* ADDED: print:w-full print:block */}
         <div className="w-[65%] flex flex-col gap-4 print:w-full print:block">
           
-          {/* THE TOP NAVIGATION BAR (ADDED: print:hidden) */}
+          {/* THE TOP NAVIGATION BAR */}
           <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-200 print:hidden">
             <h1 className="text-xl font-bold text-gray-800 tracking-tight">Resume Pilot AI</h1>
             <div className="flex gap-3">
@@ -74,7 +113,6 @@ export default function Dashboard() {
                 {isUploading ? "Extracting..." : "Upload PDF"}
               </button>
 
-              {/* THE NATIVE DOWNLOAD BUTTON */}
               <button 
                 onClick={exportToPDF}
                 className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition text-sm flex items-center gap-2"
@@ -89,27 +127,53 @@ export default function Dashboard() {
           </div>
 
           {/* THE RESUME PAPER */}
-          {/* ADDED: print:shadow-none print:border-none print:min-h-0 print:overflow-visible */}
           <div id="resume-paper" className="bg-white flex-1 rounded-xl shadow-lg border border-gray-200 pt-0 overflow-hidden min-h-[800px] flex flex-col print:shadow-none print:border-none print:min-h-0 print:overflow-visible">
             <ResumeEditor ref={editorRef} value={resumeText} onChange={(text) => setResumeText(text)} /> 
           </div>
         </div>
 
         {/* RIGHT SIDE: SIDEBAR */}
-        {/* ADDED: print:hidden */}
         <div className="w-[35%] flex flex-col gap-4 print:hidden">
           <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
              <h2 className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-widest">Target Job Description</h2>
              <textarea className="w-full h-32 p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm bg-gray-50" placeholder="Paste the job description here..." value={jobDescription} onChange={(e) => setJobDescription(e.target.value)} />
           </div>
 
+          {/* MATCH SCORE CARD WITH LEGEND */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center">
-            <h2 className="text-lg font-semibold text-gray-700 mb-2">Match Score</h2>
-            <div className="w-32 h-32 rounded-full border-8 border-blue-100 flex items-center justify-center relative">
-               <span className="text-3xl font-bold text-blue-600">
-                 {analysisResults && !analysisResults.error ? `${Math.round(analysisResults.score)}%` : "0%"}
+            <h2 className="text-lg font-semibold text-gray-700 mb-4">Match Score</h2>
+            
+            <div className={`w-32 h-32 rounded-full border-8 ${matchStatus.border} flex items-center justify-center relative transition-colors duration-500 mb-4`}>
+               <span className={`text-3xl font-bold ${matchStatus.color}`}>
+                 {displayScore}
                </span>
             </div>
+
+            {/* UPGRADED, READABLE SCORING LEGEND */}
+            <div className="w-full mt-4 pt-5 border-t border-gray-100">
+              <div className="flex justify-between text-xs tracking-wide font-extrabold">
+                
+                {/* WEAK TIER */}
+                <div className={`flex flex-col items-center gap-1 transition-all duration-300 ${matchStatus.label === 'WEAK' ? 'text-red-600 scale-110' : 'text-gray-400'}`}>
+                  <span>🔴 WEAK</span>
+                  <span className={`${matchStatus.label === 'WEAK' ? 'text-red-600' : 'text-gray-400'} font-bold`}>0-29%</span>
+                </div>
+                
+                {/* GOOD TIER */}
+                <div className={`flex flex-col items-center gap-1 transition-all duration-300 ${matchStatus.label === 'GOOD' ? 'text-yellow-600 scale-110' : 'text-gray-400'}`}>
+                  <span>🟡 GOOD</span>
+                  <span className={`${matchStatus.label === 'GOOD' ? 'text-yellow-600' : 'text-gray-400'} font-bold`}>30-44%</span>
+                </div>
+                
+                {/* EXCELLENT TIER */}
+                <div className={`flex flex-col items-center gap-1 transition-all duration-300 ${matchStatus.label === 'EXCELLENT' ? 'text-green-600 scale-110' : 'text-gray-400'}`}>
+                  <span>🟢 EXCELLENT</span>
+                  <span className={`${matchStatus.label === 'EXCELLENT' ? 'text-green-600' : 'text-gray-400'} font-bold`}>45%+</span>
+                </div>
+
+              </div>
+            </div>
+
           </div>
 
           <div className="bg-white flex-1 p-6 rounded-xl shadow-sm border border-gray-200 overflow-y-auto max-h-[800px]">
@@ -127,19 +191,28 @@ export default function Dashboard() {
                 )}
 
                 <h2 className="text-lg font-semibold text-gray-700 mb-4">AI Rewrites</h2>
-                {Object.entries(analysisResults.feedback_report || {}).map(([oldT, newT], i) => (
-                  <div 
-                    key={i} 
-                    className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-4 shadow-sm transition-all hover:border-blue-400 hover:shadow-md cursor-default"
-                    onMouseEnter={() => editorRef.current?.highlightText(oldT)}
-                    onMouseLeave={() => editorRef.current?.clearHighlight()}
-                  >
-                     <p className="text-xs font-bold text-blue-800 uppercase tracking-tighter mb-1">Suggested Improvement</p>
-                     <div className="mt-2 text-xs text-gray-500 italic line-through mb-1">"{oldT}"</div>
-                     <div className="mt-2 p-3 bg-white border border-blue-100 rounded text-sm text-green-700 font-medium">✨ {String(newT)}</div>
-                     <button onClick={() => editorRef.current?.replaceText(oldT, String(newT))} className="w-full mt-3 py-2 bg-white text-blue-600 border border-blue-200 rounded-lg font-bold hover:bg-blue-600 hover:text-white transition text-xs shadow-sm">Accept & Rewrite</button>
-                  </div>
-                ))}
+                {Object.entries(analysisResults.feedback_report || {}).length > 0 ? (
+                  Object.entries(analysisResults.feedback_report).map(([oldT, newT], i) => (
+                    <div 
+                      key={i} 
+                      className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-4 shadow-sm transition-all hover:border-blue-400 hover:shadow-md cursor-default"
+                      onMouseEnter={() => editorRef.current?.highlightText(oldT)}
+                      onMouseLeave={() => editorRef.current?.clearHighlight()}
+                    >
+                       <p className="text-xs font-bold text-blue-800 uppercase tracking-tighter mb-1">Suggested Improvement</p>
+                       <div className="mt-2 text-xs text-gray-500 italic line-through mb-1">"{oldT}"</div>
+                       <div className="mt-2 p-3 bg-white border border-blue-100 rounded text-sm text-green-700 font-medium">✨ {String(newT)}</div>
+                       <button 
+                         onClick={() => handleAcceptRewrite(oldT, String(newT))} 
+                         className="w-full mt-3 py-2 bg-white text-blue-600 border border-blue-200 rounded-lg font-bold hover:bg-blue-600 hover:text-white transition text-xs shadow-sm"
+                       >
+                         Accept & Rewrite
+                       </button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500 italic">No AI rewrites pending.</p>
+                )}
               </>
             ) : analysisResults?.error === "RATE_LIMIT" ? (
               <div className="p-8 flex flex-col items-center text-center bg-red-50 rounded-xl border border-red-100">
